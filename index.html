@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TaskFlow 3D — Mobile Optimized</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Google Identity & API Client Libraries -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            accentGreen: '#285943',
+            accentOrange: '#D98250',
+            urgentRed: '#C65353',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: var(--bg-main); color: var(--text-primary); font-family: system-ui, -apple-system, sans-serif; transition: background 0.3s, color 0.3s; }
+    
+    :root {
+      --bg-main: #F5F4EF;
+      --surface-white: #FFFFFF;
+      --text-primary: #202522;
+      --text-secondary: #737A75;
+      --border-grey: #DFE2DC;
+      --surface-completed: #DCE9DF;
+    }
+    .dark {
+      --bg-main: #121514;
+      --surface-white: #1A1F1C;
+      --text-primary: #E2E8F0;
+      --text-secondary: #94A3B8;
+      --border-grey: #2A332F;
+      --surface-completed: #1E3329;
+    }
+
+    @keyframes raceCar {
+      0% { transform: translateX(-100px); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateX(calc(100vw + 100px)); opacity: 0; }
+    }
+    .racer-car {
+      position: fixed;
+      bottom: 70px;
+      left: 0;
+      font-size: 2rem;
+      z-index: 9999;
+      pointer-events: none;
+      animation: raceCar 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-20 md:pb-0 md:flex-row antialiased">
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside id="sidebar" class="w-64 bg-[var(--surface-white)] border-r border-[var(--border-grey)] hidden md:flex flex-col justify-between shrink-0">
+    <div class="p-6">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-8 h-8 rounded bg-accentGreen flex items-center justify-center text-white font-bold">T</div>
+        <span class="font-bold text-lg text-[var(--text-primary)]">TaskFlow 3D</span>
+      </div>
+      <nav class="space-y-1 text-sm font-medium">
+        <button onclick="setFilter('all')" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-primary)] hover:bg-[var(--bg-main)]" data-target="all"><i class="fa-solid fa-house w-5"></i> Dashboard</button>
+        <button onclick="setFilter('today')" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-main)]" data-target="today"><i class="fa-solid fa-calendar-day w-5"></i> Today</button>
+        <button onclick="setFilter('upcoming')" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-main)]" data-target="upcoming"><i class="fa-solid fa-calendar-week w-5"></i> Upcoming</button>
+        <button onclick="setFilter('important')" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-main)]" data-target="important"><i class="fa-solid fa-star w-5"></i> Important</button>
+        <button onclick="setFilter('completed')" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded text-[var(--text-secondary)] hover:bg-[var(--bg-main)]" data-target="completed"><i class="fa-solid fa-check-double w-5"></i> Completed</button>
+      </nav>
+    </div>
+    <div class="p-4 border-t border-[var(--border-grey)] flex justify-between items-center">
+      <button onclick="handleAuthClick()" id="desktop-auth-btn" class="text-xs font-semibold text-accentGreen truncate">Connect Calendar</button>
+      <button onclick="toggleTheme()" class="p-2 rounded bg-[var(--bg-main)] text-[var(--text-primary)]"><i id="theme-icon" class="fa-solid fa-moon"></i></button>
+    </div>
+  </aside>
+
+  <!-- MOBILE COMPACT TOP HEADER -->
+  <header class="md:hidden bg-[var(--surface-white)] border-b border-[var(--border-grey)] px-4 py-3 flex items-center justify-between sticky top-0 z-20">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded bg-accentGreen flex items-center justify-center text-white font-bold text-xs">T</div>
+      <span class="font-bold text-sm text-[var(--text-primary)]">TaskFlow 3D</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="handleAuthClick()" id="mobile-auth-btn" class="bg-accentGreen/10 text-accentGreen px-2 py-1 rounded text-[10px] font-semibold">GCalendar</button>
+      <button onclick="toggleTheme()" class="p-2 text-[var(--text-primary)] text-sm"><i id="mobile-theme-icon" class="fa-solid fa-moon"></i></button>
+    </div>
+  </header>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--surface-white)] border-t border-[var(--border-grey)] py-2 px-4 flex justify-around items-center z-30">
+    <button onclick="setFilter('all')" class="mobile-nav-btn flex flex-col items-center text-accentGreen" data-target="all"><i class="fa-solid fa-house text-base"></i><span class="text-[10px]">Home</span></button>
+    <button onclick="setFilter('today')" class="mobile-nav-btn flex flex-col items-center text-[var(--text-secondary)]" data-target="today"><i class="fa-solid fa-calendar-day text-base"></i><span class="text-[10px]">Today</span></button>
+    <button onclick="openTaskModal()" class="bg-accentGreen text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md -mt-4"><i class="fa-solid fa-plus text-sm"></i></button>
+    <button onclick="setFilter('upcoming')" class="mobile-nav-btn flex flex-col items-center text-[var(--text-secondary)]" data-target="upcoming"><i class="fa-solid fa-calendar-week text-base"></i><span class="text-[10px]">Upcoming</span></button>
+    <button onclick="setFilter('completed')" class="mobile-nav-btn flex flex-col items-center text-[var(--text-secondary)]" data-target="completed"><i class="fa-solid fa-check-double text-base"></i><span class="text-[10px]">Done</span></button>
+  </nav>
+
+  <!-- MAIN APP BODY -->
+  <main class="flex-1 p-4 md:p-8 max-w-4xl w-full mx-auto space-y-4">
+    
+    <!-- 3D ROCKET BOOST COMPACT WIDGET -->
+    <div class="bg-[var(--surface-white)] p-3 rounded-lg border border-[var(--border-grey)] shadow-sm flex items-center justify-between cursor-pointer" onclick="triggerRacingCar()">
+      <div class="flex items-center gap-3">
+        <div id="rocket-canvas-container" class="w-16 h-12 flex items-center justify-center"></div>
+        <div>
+          <span class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Rocket Boost Progress</span>
+          <p id="rocket-percentage" class="text-sm font-bold text-accentGreen">0% Complete</p>
+        </div>
+      </div>
+      <span class="text-xs text-[var(--text-secondary)]">Tap to Race 🏎️</span>
+    </div>
+
+    <!-- FILTER & SEARCH BAR -->
+    <div class="flex items-center justify-between gap-2 bg-[var(--surface-white)] p-3 rounded-lg border border-[var(--border-grey)]">
+      <input type="text" id="search-input" oninput="handleSearch(this.value)" placeholder="Search tasks..." class="bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded px-2 py-1 text-xs flex-1 focus:outline-none">
+      <select id="sort-select" onchange="handleSort(this.value)" class="bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded px-2 py-1 text-xs focus:outline-none">
+        <option value="dueDate">Due Date</option>
+        <option value="priority">Priority</option>
+      </select>
+    </div>
+
+    <!-- TASK LIST CONTAINER -->
+    <div id="task-list-container" class="space-y-2"></div>
+  </main>
+
+  <!-- FLOATING ACTION BUTTON (DESKTOP) -->
+  <button onclick="openTaskModal()" class="hidden md:flex fixed bottom-6 right-6 bg-accentGreen text-white w-12 h-12 rounded-full shadow-lg items-center justify-center text-lg hover:scale-105 transition"><i class="fa-solid fa-plus"></i></button>
+
+  <!-- TASK MODAL -->
+  <div id="task-modal" class="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4 hidden">
+    <div class="bg-[var(--surface-white)] rounded-t-2xl md:rounded-lg max-w-md w-full p-6 border border-[var(--border-grey)] shadow-xl space-y-3">
+      <div class="flex justify-between items-center border-b border-[var(--border-grey)] pb-2">
+        <h3 id="modal-title" class="font-bold text-sm text-[var(--text-primary)]">New Task</h3>
+        <button onclick="closeTaskModal()"><i class="fa-solid fa-xmark text-[var(--text-secondary)]"></i></button>
+      </div>
+      <form id="task-form" onsubmit="handleTaskSubmit(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="task-id">
+        <input type="text" id="form-title" required placeholder="Task title..." class="w-full bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded p-2 focus:outline-none">
+        <textarea id="form-description" rows="2" placeholder="Description (optional)..." class="w-full bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded p-2 focus:outline-none"></textarea>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="date" id="form-date" class="bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded p-2 focus:outline-none">
+          <select id="form-priority" class="bg-[var(--bg-main)] border border-[var(--border-grey)] text-[var(--text-primary)] rounded p-2 focus:outline-none">
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeTaskModal()" class="bg-[var(--border-grey)] text-[var(--text-primary)] px-3 py-2 rounded font-semibold">Cancel</button>
+          <button type="submit" class="bg-accentGreen text-white px-4 py-2 rounded font-semibold">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Google Calendar Config (Replace with your Google Cloud OAuth Client ID)
+    const CLIENT_ID = '1001714847994-12ft6ge6762ucaniil9tgt2p6euvt7s5.apps.googleusercontent.com';
+    const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+    let tokenClient, gcalConnected = false;
+
+    let tasks = JSON.parse(localStorage.getItem('taskflow_tasks')) || [
+      { id: '1', title: 'Complete Assignment', dueDate: new Date().toISOString().split('T')[0], priority: 'High', completed: false, googleEventId: null }
+    ];
+
+    let currentFilter = 'all', currentSearchQuery = '', currentSort = 'dueDate';
+    let scene, camera, renderer, rocketMesh;
+
+    window.onload = function() {
+      if (localStorage.getItem('taskflow_theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+      }
+      initGoogleAPI();
+      initRocket3D();
+      renderApp();
+    };
+
+    function initGoogleAPI() {
+      try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: (resp) => {
+            if (!resp.error) {
+              gcalConnected = true;
+              document.getElementById('desktop-auth-btn').innerText = 'Calendar Connected ✓';
+              document.getElementById('mobile-auth-btn').innerText = 'Synced ✓';
+            }
+          }
+        });
+      } catch(e) { console.log('GSI not loaded'); }
+    }
+
+    function handleAuthClick() {
+      if(tokenClient) tokenClient.requestAccessToken({prompt: 'consent'});
+      else alert('Google API loading. Ensure internet connection.');
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('taskflow_theme', isDark ? 'dark' : 'light');
+      document.getElementById('theme-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      document.getElementById('mobile-theme-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    }
+
+    function initRocket3D() {
+      const container = document.getElementById('rocket-canvas-container');
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.z = 6;
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 1));
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.2, 12), new THREE.MeshStandardMaterial({color: 0x285943})));
+      group.rotation.z = -Math.PI / 2;
+      rocketMesh = group;
+      scene.add(rocketMesh);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if(rocketMesh) rocketMesh.rotation.y += 0.03;
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    function updateRocketProgress(percentage) {
+      document.getElementById('rocket-percentage').innerText = `${Math.round(percentage)}% Complete`;
+      if(rocketMesh) rocketMesh.position.x = -1.5 + (percentage / 100) * 3;
+    }
+
+    function triggerRacingCar() {
+      const car = document.createElement('div');
+      car.className = 'racer-car';
+      car.innerHTML = '🏎️💨';
+      document.body.appendChild(car);
+      setTimeout(() => car.remove(), 2000);
+    }
+
+    function saveData() {
+      localStorage.setItem('taskflow_tasks', JSON.stringify(tasks));
+      renderApp();
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.nav-btn, .mobile-nav-btn').forEach(btn => {
+        if(btn.dataset.target === filter) {
+          btn.classList.add('text-accentGreen', 'font-bold');
+        } else {
+          btn.classList.remove('text-accentGreen', 'font-bold');
+        }
+      });
+      renderApp();
+    }
+
+    function handleSearch(q) { currentSearchQuery = q.toLowerCase(); renderApp(); }
+    function handleSort(s) { currentSort = s; renderApp(); }
+
+    function renderApp() {
+      const container = document.getElementById('task-list-container');
+      let filtered = tasks.filter(t => {
+        if(currentSearchQuery && !t.title.toLowerCase().includes(currentSearchQuery)) return false;
+        if(currentFilter === 'today') return !t.completed && t.dueDate === new Date().toISOString().split('T')[0];
+        if(currentFilter === 'upcoming') return !t.completed && t.dueDate > new Date().toISOString().split('T')[0];
+        if(currentFilter === 'important') return !t.completed && t.priority === 'High';
+        if(currentFilter === 'completed') return t.completed;
+        return true;
+      });
+
+      const completedCount = tasks.filter(t => t.completed).length;
+      updateRocketProgress(tasks.length ? (completedCount / tasks.length) * 100 : 0);
+
+      if(filtered.length === 0) {
+        container.innerHTML = `<div class="bg-[var(--surface-white)] p-6 rounded-lg text-center text-xs text-[var(--text-secondary)] border border-[var(--border-grey)]">No tasks available.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(t => `
+        <div class="bg-[var(--surface-white)] p-3 rounded-lg border border-[var(--border-grey)] flex items-center justify-between gap-2 shadow-sm ${t.completed ? 'opacity-70 bg-[var(--surface-completed)]/20' : ''}">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleComplete('${t.id}')" class="h-4 w-4 rounded accent-accentGreen cursor-pointer">
+            <div class="truncate">
+              <p class="text-xs font-semibold text-[var(--text-primary)] truncate ${t.completed ? 'line-through text-[var(--text-secondary)]' : ''}">${escapeHtml(t.title)}</p>
+              <p class="text-[10px] text-[var(--text-secondary)]">${t.dueDate || 'No date'} • <span class="${t.priority === 'High' ? 'text-urgentRed' : 'text-accentGreen'}">${t.priority}</span></p>
+            </div>
+          </div>
+          <button onclick="deleteTask('${t.id}')" class="text-[var(--text-secondary)] hover:text-urgentRed p-1"><i class="fa-solid fa-trash text-xs"></i></button>
+        </div>
+      `).join('');
+    }
+
+    function toggleComplete(id) {
+      const t = tasks.find(x => x.id === id);
+      if(t) {
+        t.completed = !t.completed;
+        if(t.completed) triggerRacingCar();
+        saveData();
+      }
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(x => x.id !== id);
+      saveData();
+    }
+
+    function openTaskModal() { document.getElementById('task-modal').classList.remove('hidden'); }
+    function closeTaskModal() { document.getElementById('task-modal').classList.add('hidden'); }
+
+    async function handleTaskSubmit(e) {
+      e.preventDefault();
+      const title = document.getElementById('form-title').value.trim();
+      const dueDate = document.getElementById('form-date').value;
+      const priority = document.getElementById('form-priority').value;
+      if(!title) return;
+
+      const newTask = { id: 't_'+Date.now(), title, dueDate, priority, completed: false, googleEventId: null };
+      
+      if(gcalConnected && dueDate) {
+        try {
+          const res = await gapi.client.request({
+            path: 'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+            method: 'POST',
+            body: { summary: `[${priority}] ${title}`, start: { date: dueDate }, end: { date: dueDate } }
+          });
+          newTask.googleEventId = res.result.id;
+        } catch(err) { console.error('GCal Sync error', err); }
+      }
+
+      tasks.push(newTask);
+      closeTaskModal();
+      document.getElementById('task-form').reset();
+      saveData();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+  </script>
+</body>
+</html>
